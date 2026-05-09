@@ -4,6 +4,51 @@ import { COMPONENT_SYSTEM_INSTRUCTION } from "@/lib/generate-prompt";
 
 export const maxDuration = 60;
 
+function normalizeProviderError(error: unknown): { message: string; status: number } {
+  const raw =
+    error instanceof Error ? error.message : "Generation failed due to provider error.";
+  const lower = raw.toLowerCase();
+
+  if (
+    lower.includes("429") ||
+    lower.includes("too many requests") ||
+    lower.includes("quota") ||
+    lower.includes("rate limit")
+  ) {
+    return {
+      message:
+        "AI provider quota/rate limit exceeded. Please try again later or switch provider (for example OpenAI).",
+      status: 429,
+    };
+  }
+
+  if (
+    lower.includes("401") ||
+    lower.includes("403") ||
+    lower.includes("invalid api key") ||
+    lower.includes("api key is not set")
+  ) {
+    return {
+      message:
+        "AI provider authentication failed. Please verify your API key in environment variables.",
+      status: 401,
+    };
+  }
+
+  if (lower.includes("model") && (lower.includes("not found") || lower.includes("unsupported"))) {
+    return {
+      message:
+        "Configured AI model is unavailable. Update GEMINI_MODEL or OPENAI_MODEL and redeploy.",
+      status: 400,
+    };
+  }
+
+  return {
+    message: "Could not generate component right now. Please try again shortly.",
+    status: 500,
+  };
+}
+
 function stripGeneratedJsx(raw: string): string {
   let s = raw.trim();
   if (s.startsWith("```")) {
@@ -121,8 +166,8 @@ export async function POST(request: Request) {
     const jsx = await generateWithFallback(prompt);
     return NextResponse.json({ jsx });
   } catch (e) {
-    const message =
-      e instanceof Error ? e.message : "Generation failed.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("Generate API error:", e);
+    const { message, status } = normalizeProviderError(e);
+    return NextResponse.json({ error: message }, { status });
   }
 }
