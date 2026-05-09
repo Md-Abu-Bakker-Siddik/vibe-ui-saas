@@ -9,6 +9,7 @@ export function GeneratorApp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const generate = useCallback(async () => {
     const text = prompt.trim();
@@ -19,6 +20,7 @@ export function GeneratorApp() {
 
     setLoading(true);
     setError(null);
+    setNotice(null);
     setCopied(false);
 
     try {
@@ -27,7 +29,12 @@ export function GeneratorApp() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: text }),
       });
-      const data = (await res.json()) as { jsx?: string; error?: string };
+      const data = (await res.json()) as {
+        jsx?: string;
+        error?: string;
+        warning?: string;
+        source?: "ai" | "fallback";
+      };
 
       if (!res.ok) {
         setError(data.error || "Request failed.");
@@ -42,6 +49,9 @@ export function GeneratorApp() {
       }
 
       setJsx(data.jsx);
+      if (data.source === "fallback" && data.warning) {
+        setNotice(data.warning);
+      }
     } catch {
       setError("Network error. Try again.");
       setJsx(null);
@@ -96,6 +106,11 @@ export function GeneratorApp() {
               role="alert"
             >
               {error}
+            </p>
+          )}
+          {notice && !error && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-200">
+              {notice}
             </p>
           )}
 

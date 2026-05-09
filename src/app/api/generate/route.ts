@@ -49,6 +49,76 @@ function normalizeProviderError(error: unknown): { message: string; status: numb
   };
 }
 
+function buildTemplateFromPrompt(prompt: string): string {
+  const p = prompt.toLowerCase();
+
+  if (p.includes("login") || p.includes("sign in") || p.includes("signin")) {
+    return `<div className="flex min-h-[420px] items-center justify-center bg-zinc-100 p-6">
+  <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+    <h2 className="text-2xl font-semibold text-zinc-900">Welcome back</h2>
+    <p className="mt-1 text-sm text-zinc-500">Sign in to continue to your workspace.</p>
+    <form className="mt-6 space-y-4">
+      <div>
+        <label className="mb-1 block text-sm font-medium text-zinc-700">Email</label>
+        <input type="email" placeholder="you@example.com" className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-violet-500" />
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium text-zinc-700">Password</label>
+        <input type="password" placeholder="••••••••" className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-violet-500" />
+      </div>
+      <div className="flex items-center justify-between text-sm">
+        <label className="inline-flex items-center gap-2 text-zinc-600"><input type="checkbox" />Remember me</label>
+        <a className="text-violet-600 hover:text-violet-500" href="#">Forgot password?</a>
+      </div>
+      <button type="button" className="w-full rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-500">Sign in</button>
+    </form>
+  </div>
+</div>`;
+  }
+
+  if (p.includes("pricing")) {
+    return `<div className="bg-zinc-50 p-8">
+  <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-3">
+    <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+      <h3 className="text-lg font-semibold text-zinc-900">Starter</h3>
+      <p className="mt-2 text-3xl font-bold text-zinc-900">$9<span className="text-sm font-normal text-zinc-500">/mo</span></p>
+    </div>
+    <div className="rounded-2xl border-2 border-violet-500 bg-white p-6 shadow-sm">
+      <h3 className="text-lg font-semibold text-zinc-900">Pro</h3>
+      <p className="mt-2 text-3xl font-bold text-zinc-900">$29<span className="text-sm font-normal text-zinc-500">/mo</span></p>
+    </div>
+    <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+      <h3 className="text-lg font-semibold text-zinc-900">Enterprise</h3>
+      <p className="mt-2 text-3xl font-bold text-zinc-900">$99<span className="text-sm font-normal text-zinc-500">/mo</span></p>
+    </div>
+  </div>
+</div>`;
+  }
+
+  if (p.includes("hero")) {
+    return `<div className="overflow-hidden rounded-2xl bg-zinc-900 p-10 text-white">
+  <div className="grid items-center gap-8 md:grid-cols-2">
+    <div>
+      <p className="mb-3 text-xs uppercase tracking-[0.2em] text-violet-300">New launch</p>
+      <h1 className="text-4xl font-semibold leading-tight">Build beautiful UI in minutes</h1>
+      <p className="mt-4 max-w-md text-zinc-300">Generate clean Tailwind components instantly from plain English prompts.</p>
+      <div className="mt-6 flex gap-3">
+        <button type="button" className="rounded-lg bg-violet-500 px-4 py-2 text-sm font-medium text-white">Get started</button>
+        <button type="button" className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-200">Learn more</button>
+      </div>
+    </div>
+    <div className="h-52 rounded-xl border border-zinc-700 bg-zinc-800/70" />
+  </div>
+</div>`;
+  }
+
+  return `<div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+  <h2 className="text-xl font-semibold text-zinc-900">Generated component</h2>
+  <p className="mt-2 text-sm text-zinc-600">Prompt: ${prompt.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+  <button type="button" className="mt-5 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white">Primary action</button>
+</div>`;
+}
+
 function stripGeneratedJsx(raw: string): string {
   let s = raw.trim();
   if (s.startsWith("```")) {
@@ -152,8 +222,20 @@ export async function POST(request: Request) {
 
     const hasGemini = Boolean(process.env.GEMINI_API_KEY);
     const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
+    const allowDemoFallback =
+      process.env.ALLOW_DEMO_FALLBACK?.toLowerCase() !== "false";
 
     if (!hasGemini && !hasOpenAI) {
+      if (allowDemoFallback) {
+        const jsx = buildTemplateFromPrompt(prompt);
+        return NextResponse.json({
+          jsx,
+          source: "fallback",
+          warning:
+            "No API key configured. Running in free local fallback mode.",
+        });
+      }
+
       return NextResponse.json(
         {
           error:
@@ -163,8 +245,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const jsx = await generateWithFallback(prompt);
-    return NextResponse.json({ jsx });
+    try {
+      const jsx = await generateWithFallback(prompt);
+      return NextResponse.json({ jsx, source: "ai" });
+    } catch (providerError) {
+      if (allowDemoFallback) {
+        const jsx = buildTemplateFromPrompt(prompt);
+        return NextResponse.json({
+          jsx,
+          source: "fallback",
+          warning:
+            "AI provider unavailable right now. Showing a local fallback component.",
+        });
+      }
+      throw providerError;
+    }
   } catch (e) {
     console.error("Generate API error:", e);
     const { message, status } = normalizeProviderError(e);
