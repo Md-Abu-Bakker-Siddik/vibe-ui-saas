@@ -22,7 +22,7 @@ export function ComponentPreview({ jsxSource }: Props) {
     }
 
     try {
-      const wrapped = `(${trimmed})`;
+      const wrapped = `const __preview = (${trimmed});`;
       const out = Babel.transform(wrapped, {
         presets: ["react"],
         filename: "preview.jsx",
@@ -32,8 +32,10 @@ export function ComponentPreview({ jsxSource }: Props) {
         throw new Error("Compilation produced empty output.");
       }
 
-      const expression = out.replace(/;\s*$/, "");
-      const run = new Function("React", `return ${expression}`) as (
+      const run = new Function(
+        "React",
+        `${out}\nreturn typeof __preview === "undefined" ? null : __preview;`
+      ) as (
         R: typeof React
       ) => React.ReactNode;
       const node = run(React);

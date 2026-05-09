@@ -3,6 +3,8 @@
 import { useCallback, useState } from "react";
 import { ComponentPreview } from "@/components/ComponentPreview";
 
+type PreviewDevice = "desktop" | "tablet" | "mobile";
+
 export function GeneratorApp() {
   const [prompt, setPrompt] = useState("");
   const [jsx, setJsx] = useState<string | null>(null);
@@ -10,6 +12,19 @@ export function GeneratorApp() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [device, setDevice] = useState<PreviewDevice>("desktop");
+
+  const deviceLabel: Record<PreviewDevice, string> = {
+    desktop: "Desktop",
+    tablet: "Tablet",
+    mobile: "Mobile",
+  };
+
+  const frameWidth: Record<PreviewDevice, string> = {
+    desktop: "w-full",
+    tablet: "w-full max-w-[820px]",
+    mobile: "w-full max-w-[390px]",
+  };
 
   const generate = useCallback(async () => {
     const text = prompt.trim();
@@ -124,23 +139,48 @@ export function GeneratorApp() {
           </button>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 lg:sticky lg:top-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-              Preview
-            </h2>
-            <button
-              type="button"
-              onClick={copyCode}
-              disabled={!jsx}
-              className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              {copied ? "Copied" : "Copy code"}
-            </button>
+            <h2 className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Preview</h2>
+            <div className="flex items-center gap-2">
+              <div className="inline-flex items-center rounded-lg border border-zinc-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-900">
+                {(["desktop", "tablet", "mobile"] as PreviewDevice[]).map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setDevice(d)}
+                    className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+                      device === d
+                        ? "bg-violet-600 text-white"
+                        : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    }`}
+                  >
+                    {deviceLabel[d]}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={copyCode}
+                disabled={!jsx}
+                className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              >
+                {copied ? "Copied" : "Copy code"}
+              </button>
+            </div>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50/80 p-6 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)] dark:border-zinc-700 dark:bg-zinc-900/50 dark:shadow-none">
-            <ComponentPreview jsxSource={jsx} />
+          <div className="rounded-2xl border border-zinc-200 bg-zinc-50/80 p-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)] sm:p-4 dark:border-zinc-700 dark:bg-zinc-900/50 dark:shadow-none">
+            <div className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              {deviceLabel[device]} viewport
+            </div>
+            <div className="max-h-[560px] overflow-auto rounded-xl bg-white/80 p-3 dark:bg-zinc-950/50">
+              <div
+                className={`${frameWidth[device]} mx-auto rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900`}
+              >
+                <ComponentPreview jsxSource={jsx} />
+              </div>
+            </div>
           </div>
 
           {jsx && (

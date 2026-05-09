@@ -4,6 +4,13 @@ AI-powered component generation platform that converts plain-English prompts int
 
 ---
 
+## Links
+
+- **Live Demo:** [https://vibe-ui-saas.vercel.app/](https://vibe-ui-saas.vercel.app/)
+- **GitHub Repository:** [https://github.com/Md-Abu-Bakker-Siddik/vibe-ui-saas](https://github.com/Md-Abu-Bakker-Siddik/vibe-ui-saas)
+
+---
+
 ## Overview
 
 Vibe UI is a full-stack Next.js application designed as a SaaS MVP. Users describe a UI component (for example, "dark hero section with CTA"), and the app returns generated JSX, renders a live preview, and supports one-click code copy.
